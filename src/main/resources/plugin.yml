@@ -1,0 +1,10 @@
+name: Duels
+version: '1.0'
+main: com.tools.duels.Main
+api-version: '1.16'
+authors: [ tools ]
+description: Tools's duels
+commands:
+  duels:
+    description: Duels command
+    usage: /duels [join|leave]
