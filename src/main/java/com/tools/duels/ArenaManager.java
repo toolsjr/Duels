@@ -44,10 +44,8 @@ public class ArenaManager {
 
     public void createArena() {
         World world = Bukkit.getWorlds().get(0);
-        // Set spawn location at x=0, y=100, z=0 (adjust as needed)
         this.arenaSpawn = new Location(world, 0, 100, 0);
 
-        // You can add arena setup logic here (building platforms, etc.)
     }
 
     public Location getArenaSpawn() {

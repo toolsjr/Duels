@@ -3,8 +3,6 @@ package com.tools.duels;
 import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.boss.BarColor;
@@ -13,13 +11,10 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Firework;
 import org.bukkit.inventory.meta.FireworkMeta;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class GameManager {
-    private final JavaPlugin plugin;
+    private final Main plugin;
     private final ArenaManager arenaManager;
     private final ScoreboardManager scoreboardManager;
     private List<Player> players = new ArrayList<>();
@@ -32,7 +27,7 @@ public class GameManager {
     private int arenaCloseTaskId;
     private final FileConfiguration config;
 
-    public GameManager(JavaPlugin plugin, ArenaManager arenaManager, ScoreboardManager scoreboardManager, FileConfiguration config) {
+    public GameManager(Main plugin, ArenaManager arenaManager, ScoreboardManager scoreboardManager, FileConfiguration config) {
         this.plugin = plugin;
         this.arenaManager = arenaManager;
         this.scoreboardManager = scoreboardManager;
@@ -49,10 +44,6 @@ public class GameManager {
 
         scoreboardManager.updateLobbyScoreboard(players, "Ожидание");
         Bukkit.broadcastMessage("§aИгрок " + player.getName() + " зашёл в дуэль (" + players.size() + "/2)");
-
-        if (players.size() == 2) {
-            startCountdown();
-        }
     }
 
     public void removePlayer(Player player) {
@@ -82,7 +73,7 @@ public class GameManager {
         }
     }
 
-    private void startCountdown() {
+    public void startCountdown() {
         updateScoreboardsForAll("Подготовка к игре");
         countdownTaskId = new BukkitRunnable() {
             int timeLeft = config.getInt("game.countdown", 5);
@@ -111,7 +102,6 @@ public class GameManager {
     }
 
     private float getPitchForCountdown(int secondsLeft) {
-        // Меняем тон звука в зависимости от оставшегося времени
         switch (secondsLeft) {
             case 5: return 0.5f;
             case 4: return 0.6f;
@@ -130,27 +120,13 @@ public class GameManager {
         players.get(1).teleport(arenaManager.getPlayer2Spawn());
 
         for (Player player : players) {
-            preparePlayer(player);
+            plugin.getModeManager().getReady(player);
             bossBar.addPlayer(player);
         }
         updateScoreboardsForAll("Сражение");
 
         startGameTimer();
         startHealthUpdateTask();
-    }
-
-    private void preparePlayer(Player player) {
-        PlayerInventory inv = player.getInventory();
-        inv.clear();
-
-        inv.setHelmet(new ItemStack(Material.IRON_HELMET));
-        inv.setChestplate(new ItemStack(Material.IRON_CHESTPLATE));
-        inv.setLeggings(new ItemStack(Material.IRON_LEGGINGS));
-        inv.setBoots(new ItemStack(Material.IRON_BOOTS));
-        inv.setItem(0, new ItemStack(Material.IRON_SWORD));
-
-        player.setHealth(20);
-        player.setFoodLevel(20);
     }
 
     private void startGameTimer() {
@@ -165,8 +141,8 @@ public class GameManager {
                     return;
                 }
 
-                bossBar.setTitle("Осталось времени: " + timeLeft + "с");
-                bossBar.setProgress(timeLeft / 60.0);
+                bossBar.setTitle("Осталось времени: " + timeLeft + "сек.");
+                bossBar.setProgress((double) timeLeft / config.getInt("game.duration"));
 
                 timeLeft--;
             }
@@ -192,13 +168,11 @@ public class GameManager {
         }.runTaskTimer(plugin, 0, 10).getTaskId();
     }
     private void spawnFireworks(Player player) {
-        // Запускаем 3 фейерверка для зрелищности
         for (int i = 0; i < 3; i++) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 Firework fw = player.getWorld().spawn(player.getLocation(), Firework.class);
                 FireworkMeta fwm = fw.getFireworkMeta();
 
-                // Создаём эффект фейерверка
                 FireworkEffect.Builder builder = FireworkEffect.builder();
                 builder.withTrail().withFlicker().withFade(Color.ORANGE, Color.RED, Color.YELLOW);
                 builder.with(FireworkEffect.Type.BALL_LARGE);
@@ -208,9 +182,8 @@ public class GameManager {
                 fwm.setPower(1);
                 fw.setFireworkMeta(fwm);
 
-                // Удаляем фейерверк через 3 секунды
                 Bukkit.getScheduler().runTaskLater(plugin, fw::remove, 20 * 3);
-            }, 10 * i); // Запускаем с задержкой между фейерверками
+            }, 10 * i);
         }
     }
 
@@ -234,7 +207,6 @@ public class GameManager {
         }
         Bukkit.broadcastMessage("§cАрена закроется через §e" + countdown + "§c секунд.");
 
-        // Не очищаем скорборд, оставляем его с сообщением о завершении
         for (Player player : players) {
             player.getInventory().clear();
             bossBar.removePlayer(player);
@@ -266,6 +238,10 @@ public class GameManager {
 
     public boolean isInGame(Player player) {
         return players.contains(player);
+    }
+
+    public List<Player> getPlayers() {
+        return players;
     }
 
     public Player getOpponent(Player player) {
